@@ -145,7 +145,7 @@ public class OMModel {
 			logger.finer(lib.toString() + " loaded");
 
 		    } catch (IOException e2) {
-			e2.printStackTrace();
+			logger.severe(e2.getMessage());
 		    }
 		} // if
             } // for
@@ -163,14 +163,13 @@ public class OMModel {
                  .forEach(f -> f.delete());
 
         } catch (URISyntaxException|IOException e) {
-            e.printStackTrace();
+            logger.severe(e.getMessage());
         }
     }
 
     private static native OMTensorList main_graph_jni(OMTensorList list);
-    private static native String input_signature_jni();
+    private static native String[] query_entry_points();
     private static native String input_signature_jni(String entry_point);
-    private static native String output_signature_jni();
     private static native String output_signature_jni(String entry_point);
 
     /**
@@ -181,6 +180,15 @@ public class OMModel {
      */
     public static OMTensorList mainGraph(OMTensorList list) {
         return main_graph_jni(list);
+    }
+
+    /**
+     * Query all entry point names in the model.
+     *
+     * @return String array of entry point names
+     */
+    public static String[] queryEntryPoints() {
+	return query_entry_points();
     }
 
     /**

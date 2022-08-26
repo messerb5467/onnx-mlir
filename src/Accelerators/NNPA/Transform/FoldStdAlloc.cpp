@@ -11,8 +11,8 @@
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/Utils.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -126,7 +126,7 @@ public:
             expandAffineMap(rewriter, loc, op.getAffineMap(), indices);
         if (!maybeExpandedMap)
           continue;
-        storeIndex = maybeExpandedMap.getValue()[0];
+        storeIndex = maybeExpandedMap.value()[0];
         storeVal = op.getValueToStore();
       }
 
@@ -196,7 +196,7 @@ public:
  *  Function pass that folds std.alloc.
  */
 class FoldStdAllocPass
-    : public PassWrapper<FoldStdAllocPass, OperationPass<FuncOp>> {
+    : public PassWrapper<FoldStdAllocPass, OperationPass<func::FuncOp>> {
 public:
   StringRef getArgument() const override { return "fold-std-alloc"; }
 

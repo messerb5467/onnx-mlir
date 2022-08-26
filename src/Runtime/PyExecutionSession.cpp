@@ -94,7 +94,8 @@ std::vector<py::array> PyExecutionSession::pyRun(
 
   auto *wrappedInput = omTensorListCreate(&omts[0], omts.size());
   auto *wrappedOutput = _entryPointFunc(wrappedInput);
-
+  if (!wrappedOutput)
+    throw std::runtime_error(reportErrnoError());
   std::vector<py::array> outputPyArrays;
   for (int64_t i = 0; i < omTensorListGetSize(wrappedOutput); i++) {
     auto *omt = omTensorListGetOmtByIndex(wrappedOutput, i);
@@ -168,7 +169,7 @@ void PyExecutionSession::pySetEntryPoint(std::string entryPointName) {
 
 std::vector<std::string> PyExecutionSession::pyQueryEntryPoints() {
   assert(_queryEntryPointsFunc && "Query entry point not loaded.");
-  const char **entryPointArr = _queryEntryPointsFunc();
+  const char **entryPointArr = _queryEntryPointsFunc(NULL);
 
   std::vector<std::string> outputPyArrays;
   int i = 0;
