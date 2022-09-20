@@ -38,6 +38,9 @@ def createDenseElementsAttrFromFloatAttr : NativeCodeCall<
 def createDenseElementsAttrFromShape : NativeCodeCall<
   "onnx_mlir::createDenseElementsAttrFromShape($_builder, $0)">;
 
+def createDenseElementsAttrFromShapeResult : NativeCodeCall<
+  "onnx_mlir::createDenseElementsAttrFromShapeOp($_builder, $0.getDefiningOp())">;
+
 // Create a DenseElementsAttr from the size of the type of a value.
 def createDenseElementsAttrFromSize : NativeCodeCall<
   "onnx_mlir::createDenseElementsAttrFromSize($_builder, $0)">;
@@ -386,6 +389,95 @@ def FuseTransposePattern:  Pat<
   // Transpose with combined pattern.
   (ONNXTransposeOp $v, (CreateCombinedTransposedPattern $p1, $p2))>;
 
+class FuseTransposeAndElementwiseUnaryOpPattern<Op elmOp>:  Pat<
+  // Transpose of elmOp on a transpose.
+  (ONNXTransposeOp (elmOp (ONNXTransposeOp $v, $p1)), $p2),
+  // elmOp on Transpose with combined pattern.
+  (ONNXTransposeOp (elmOp $v, (returnType $v)),
+                   (CreateCombinedTransposedPattern $p1, $p2))>;
+
+class FuseTransposeAndElementwiseUnaryWithOneArgOpPattern<Op elmOp>:  Pat<
+  // Transpose of elmOp on a transpose.
+  (ONNXTransposeOp (elmOp (ONNXTransposeOp $v, $p1), $arg1), $p2),
+  // elmOp on Transpose with combined pattern.
+  (ONNXTransposeOp (elmOp $v, $arg1, (returnType $v)),
+                   (CreateCombinedTransposedPattern $p1, $p2))>;
+
+class FuseTransposeAndElementwiseUnaryWithTwoArgOpPattern<Op elmOp>:  Pat<
+  // Transpose of elmOp on a transpose.
+  (ONNXTransposeOp (elmOp (ONNXTransposeOp $v, $p1), $arg1, $arg2), $p2),
+  // elmOp on Transpose with combined pattern.
+  (ONNXTransposeOp (elmOp $v, $arg1, $arg2, (returnType $v)),
+                   (CreateCombinedTransposedPattern $p1, $p2))>;
+
+def FuseTransposeAndAtanPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXAtanOp>;
+def FuseTransposeAndCastPattern :
+    FuseTransposeAndElementwiseUnaryWithOneArgOpPattern<ONNXCastOp>;
+def FuseTransposeAndCeilPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXCeilOp>;
+def FuseTransposeAndCosPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXCosOp>;
+def FuseTransposeAndCoshPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXCoshOp>;
+def FuseTransposeAndEluPattern :
+    FuseTransposeAndElementwiseUnaryWithOneArgOpPattern<ONNXEluOp>;
+def FuseTransposeAndErfPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXErfOp>;
+def FuseTransposeAndAcosPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXAcosOp>;
+def FuseTransposeAndAcoshPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXAcoshOp>;
+def FuseTransposeAndAsinPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXAsinOp>;
+def FuseTransposeAndAsinhPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXAsinhOp>;
+def FuseTransposeAndAtanhPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXAtanhOp>;
+def FuseTransposeAndExpPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXExpOp>;
+def FuseTransposeAndFloorPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXFloorOp>;
+def FuseTransposeAndHardSigmoidPattern :
+    FuseTransposeAndElementwiseUnaryWithTwoArgOpPattern<ONNXHardSigmoidOp>;
+def FuseTransposeAndIsNaNPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXIsNaNOp>;
+def FuseTransposeAndLeakyReluPattern :
+    FuseTransposeAndElementwiseUnaryWithOneArgOpPattern<ONNXLeakyReluOp>;
+def FuseTransposeAndLogPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXLogOp>;
+def FuseTransposeAndNegPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXNegOp>;
+def FuseTransposeAndNotPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXNotOp>;
+def FuseTransposeAndReciprocalPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXReciprocalOp>;
+def FuseTransposeAndReluPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXReluOp>;
+def FuseTransposeAndRoundPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXRoundOp>;
+def FuseTransposeAndSeluPattern :
+    FuseTransposeAndElementwiseUnaryWithTwoArgOpPattern<ONNXSeluOp>;
+def FuseTransposeAndSigmoidPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSigmoidOp>;
+def FuseTransposeAndSignPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSignOp>;
+def FuseTransposeAndSinPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSinOp>;
+def FuseTransposeAndSinhPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSinhOp>;
+def FuseTransposeAndSoftplusPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSoftplusOp>;
+def FuseTransposeAndSoftsignPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSoftsignOp>;
+def FuseTransposeAndSqrtPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXSqrtOp>;
+def FuseTransposeAndTanPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXTanOp>;
+def FuseTransposeAndTanhPattern :
+    FuseTransposeAndElementwiseUnaryOpPattern<ONNXTanhOp>;
+
+
 def RemoveIdentityTransposePattern:  Pat<
   // Transpose with an identity pattern (e.g. {0, 1, 2, 3}).
   (ONNXTransposeOp $val, $p),
@@ -442,7 +534,9 @@ def SwapReshapeMatMulPattern: Pattern<
  // TODO: Support dynamic dimensions.
  (ONNXMatMulOp:$res2 (ONNXReshapeOp:$res1 $A, $_, $az), $B),
  [(ONNXReshapeOp (ONNXMatMulOp $A, $B, (returnType (GetReturnTypeForMatMulOpND2D $A, $B))),
-                 (ONNXConstantOpFromDenseAttr (createDenseElementsAttrFromShape $res2)), $az)],
+                 (ONNXConstantOpFromDenseAttr 
+                    (createDenseElementsAttrFromShape $res2)
+                 ), $az)],
  [(HasRankGT<2> $A), (HasRankOf<2> $res1), (HasRankOf<2> $B), // A is reshaped to 2D.
   (HaveSameLastDim $A, $res1), // The last dim of A is unchanged by reshape.
   (IsStaticShapeTensor:$res2)  // $res2 has static dims in order to create ReshapeOp.
@@ -630,9 +724,9 @@ def RewriteBatchNormInferenceModeConvPattern2: Pat<
 
 // TODO: this rules may need to be updated once ShapeOp has start/end.
 def ShapeToConstantPattern: Pat<
-     (ONNXShapeOp $A),
+     (ONNXShapeOp:$res $A, $end, $start),
      (ONNXConstantOp
-        (GetNullAttr), (createDenseElementsAttrFromShape $A),
+        (GetNullAttr), (createDenseElementsAttrFromShapeResult $res),
         (GetNullFloatAttr), (GetNullArrayAttr), (GetNullIntegerAttr),
         (GetNullArrayAttr), (GetNullStringAttr), (GetNullArrayAttr)
      ),

@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "llvm/ADT/BitVector.h"
 
 #include "mlir/IR/AffineExpr.h"
@@ -86,8 +88,14 @@ struct ONNXOpShapeHelper {
   // Return output dims for the N-th output.
   DimsExpr &dimsForOutput(int n = 0) { return outputsDims[n]; }
 
+  // Set output dims for the N-th output.
+  void setOutputDims(DimsExpr inferredDims, int n = 0);
+
   // Set the number of outputs.
   void setNumberOfOutputs(int n) { outputsDims.resize(n); }
+
+  // Obtain the n-th output value.
+  mlir::Value getOutput(int n) { return op->getOperation()->getResult(n); }
 
   // Data that must be present for every ShapeHelper operation. Op and scope
   // are initialized in the constructor, and outputsDims is computed by the
@@ -232,7 +240,6 @@ DECLARE_SHAPE_HELPER(ONNXGatherOp)
 DECLARE_SHAPE_HELPER(ONNXGatherElementsOp)
 DECLARE_SHAPE_HELPER(ONNXGatherNDOp)
 DECLARE_SHAPE_HELPER(ONNXLRNOp)
-DECLARE_SHAPE_HELPER(ONNXReduceSumOp)
 DECLARE_SHAPE_HELPER(ONNXReshapeOp)
 DECLARE_SHAPE_HELPER(ONNXReverseSequenceOp)
 DECLARE_SHAPE_HELPER(ONNXShapeOp)
@@ -247,6 +254,12 @@ DECLARE_SHAPE_HELPER(ONNXTransposeOp)
 DECLARE_SHAPE_HELPER(ONNXUnsqueezeOp)
 DECLARE_SHAPE_HELPER(ONNXUnsqueezeV11Op)
 #undef DECLARE_SHAPE_HELPER
+
+// Compute a slice of the input tensor's shape. The slice starts from axis 0.
+// The axes up to the last one will be included. Negative axes indicate counting
+// back from the last axis.
+std::pair<int64_t, int64_t> getDataShapeBounds(
+    mlir::ONNXShapeOpAdaptor &operandAdaptor);
 
 // Compute the data selected by the Shape operator.
 DimsExpr computeSelectedData(mlir::ONNXShapeOpAdaptor &operandAdaptor);
@@ -377,5 +390,12 @@ DECLARE_POOL_SHAPE_HELPER(ONNXMaxPoolSingleOutOp)
   };
 DECLARE_BROADCASTED_SHAPE_HELPER(ONNXExpandOp)
 #undef DECLARE_BROADCASTED_SHAPE_HELPER
+
+/// Handle shape inference for unary element-wise operators.
+mlir::LogicalResult inferShapeForUnaryElementwiseOps(mlir::Operation *op);
+
+/// Update a tensor type by using the given shape, elementType and encoding.
+void updateType(mlir::Value val, llvm::ArrayRef<int64_t> shape,
+    mlir::Type elementType = nullptr, mlir::Attribute encoding = nullptr);
 
 } // namespace onnx_mlir

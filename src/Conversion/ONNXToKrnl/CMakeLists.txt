@@ -5,6 +5,7 @@ add_onnx_mlir_library(OMONNXToKrnl
   ConvertONNXToKrnl.cpp
   ONNXToKrnlCommon.cpp
   PerfectHash.cpp
+  ControlFlow/If.cpp
   ControlFlow/Loop.cpp
   ControlFlow/Scan.cpp
   Math/CumSum.cpp
@@ -69,7 +70,6 @@ add_onnx_mlir_library(OMONNXToKrnl
 
   LINK_LIBS PUBLIC
   Accelerator
-  CompilerOptions
   OMConstPropHelper
   OMONNXOps
   OMSupport

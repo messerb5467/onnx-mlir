@@ -45,13 +45,11 @@ def GetSqrtResultBatchNormA :
 // Rewrite
 //
 // ONNXBatchNormalizationInferenceModeOp %X
-//             = NHWCtoNCHW
-//                 (ZHighUnstickOp
-//                     (ZHighBatchNormOp
-//                         (ZHighStickOp
-//                             (NCHWtoNHWC %X)),
-//                         (ZHighStickOp %A),
-//                         (ZHighStickOp %B)))
+//   (ZHighUnstickOp
+//       (ZHighBatchNormOp
+//           (ZHighStickOp %X),
+//           (ZHighStickOp %A),
+//           (ZHighStickOp %B)))
 //
 // %A = $scale / sqrt($var + $epsilon))
 // %B = $b - $mean * %A
@@ -66,12 +64,11 @@ def replaceONNXBatchNormalizationInferenceModePattern : Pattern<
     (ONNXSubOp:$B $b, (ONNXMulOp $mean, $A)),
 
     // Calculate BatchNorm Op using $A and $B
-    (NHWCtoNCHW (GetTypeOf $res),
-        (ZHighUnstickOp
-            (ZHighBatchNormOp
-                (ZHighStickOp (NCHWtoNHWC $x), (NHWCLayoutAttr)),
-                (ZHighStickOp $A, (_1DLayoutAttr)),
-                (ZHighStickOp $B, (_1DLayoutAttr)))))
+    (ZHighUnstickOp
+        (ZHighBatchNormOp
+            (ZHighStickOp $x, (NHWCLayoutAttr)),
+            (ZHighStickOp $A, (_1DLayoutAttr)),
+            (ZHighStickOp $B, (_1DLayoutAttr))))
   ]
 >;
 
@@ -90,6 +87,12 @@ def replaceONNXBatchNormalizationInferenceModePattern : Pattern<
 //
 // 
 //===----------------------------------------------------------------------===//
+
+
+// Create an ONNX Shape Op with type
+def CreateShapeOp: NativeCodeCall<
+  "$_builder.create<mlir::ONNXShapeOp>($_loc, $0, $1, IntegerAttr(), 0)"
+>;
 
 // Get a type for a tensor that stores the shape of another tensor.
 def GetShapeTypeOf: NativeCodeCall<
@@ -115,7 +118,7 @@ def expandConstantOperandForAddOp1: Pat<
 def expandConstantOperandForAddOp2: Pat<
   (ONNXAddOp $x, (ONNXConstantOp:$c $_, $_, $_, $_, $_, $_, $_, $_)),
   (ONNXAddOp $x, (ONNXExpandOp $c,
-                               (ONNXShapeOp $x, (returnType (GetShapeTypeOf $x))),
+                               (CreateShapeOp (GetShapeTypeOf $x), $x),
                                (returnType $x))),
   [(IsUniBroadcastingFromFirstToSecond $c, $x)]
 >;
@@ -127,7 +130,7 @@ def expandConstantOperandForAddOp2: Pat<
 def expandConstantOperandForDivOp1: Pat<
   (ONNXDivOp $x, (ONNXConstantOp:$c $_, $_, $_, $_, $_, $_, $_, $_)),
   (ONNXDivOp $x, (ONNXExpandOp $c,
-                               (ONNXShapeOp $x, (returnType (GetShapeTypeOf $x))),
+                               (CreateShapeOp (GetShapeTypeOf $x), $x),
                                (returnType $x))),
   [(IsUniBroadcastingFromFirstToSecond $c, $x)]
 >;
@@ -135,7 +138,7 @@ def expandConstantOperandForDivOp1: Pat<
 def expandConstantOperandForDivOp2: Pat<
   (ONNXDivOp (ONNXConstantOp:$c $_, $_, $_, $_, $_, $_, $_, $_), $x),
   (ONNXDivOp (ONNXExpandOp $c,
-                           (ONNXShapeOp $x, (returnType (GetShapeTypeOf $x))),
+                           (CreateShapeOp (GetShapeTypeOf $x), $x),
                            (returnType $x)),
              $x),
   [(IsUniBroadcastingFromFirstToSecond $c, $x)]
@@ -154,7 +157,7 @@ def expandConstantOperandForMulOp1: Pat<
 def expandConstantOperandForMulOp2: Pat<
   (ONNXMulOp $x, (ONNXConstantOp:$c $_, $_, $_, $_, $_, $_, $_, $_)),
   (ONNXMulOp $x, (ONNXExpandOp $c,
-                               (ONNXShapeOp $x, (returnType (GetShapeTypeOf $x))),
+                               (CreateShapeOp (GetShapeTypeOf $x), $x),
                                (returnType $x))),
   [(IsUniBroadcastingFromFirstToSecond $c, $x)]
 >;
@@ -166,7 +169,7 @@ def expandConstantOperandForMulOp2: Pat<
 def expandConstantOperandForSubOp1: Pat<
   (ONNXSubOp $x, (ONNXConstantOp:$c $_, $_, $_, $_, $_, $_, $_, $_)),
   (ONNXSubOp $x, (ONNXExpandOp $c,
-                               (ONNXShapeOp $x, (returnType (GetShapeTypeOf $x))),
+                               (CreateShapeOp (GetShapeTypeOf $x), $x),
                                (returnType $x))),
   [(IsUniBroadcastingFromFirstToSecond $c, $x)]
 >;
@@ -174,7 +177,7 @@ def expandConstantOperandForSubOp1: Pat<
 def expandConstantOperandForSubOp2: Pat<
   (ONNXSubOp (ONNXConstantOp:$c $_, $_, $_, $_, $_, $_, $_, $_), $x),
   (ONNXSubOp (ONNXExpandOp $c,
-                           (ONNXShapeOp $x, (returnType (GetShapeTypeOf $x))),
+                           (CreateShapeOp (GetShapeTypeOf $x), $x),
                            (returnType $x)),
              $x),
   [(IsUniBroadcastingFromFirstToSecond $c, $x)]
@@ -227,6 +230,31 @@ def rewriteMatMulNDto3D_Broadcast_2: Pat<
                  (GetMatMulResultShape $a, $b),
                  (GetZeroI64Attr)),
   [(HasRankOf<2> $a), (HasRankGT<3> $b)]
+>;
+
+//===----------------------------------------------------------------------===//
+// Rules to turn ONNXSoftmaxOp with N-D inputs into the one with 2-D inputs.
+//===----------------------------------------------------------------------===//
+
+def ReshapeTo2DKeepLast: NativeCodeCall<
+  "reshapeTo2DKeepLast($_builder, $_loc, $0)"
+>;
+
+def SoftmaxAxisOne: NativeCodeCall<
+ "IntegerAttr::get($_builder.getIntegerType(64, /*isSigned=*/true), APInt(64, 1, /*isSigned=*/true))">;
+
+def GetShapeResultType: NativeCodeCall<
+ "RankedTensorType::get({getRank($0.getType())}, $_builder.getI64Type())">;
+
+def rewriteSoftmaxNDto2D: Pat<
+  (ONNXSoftmaxOp:$c $input, $axis),
+  (ONNXReshapeOp (ONNXSoftmaxOp
+                    (ReshapeTo2DKeepLast:$r $input),
+                    (SoftmaxAxisOne),
+                    (returnType $r)),
+                 (CreateShapeOp (GetShapeResultType $input), $input),
+                 (GetZeroI64Attr)),
+  [(HasRankGT<2> $input)]
 >;
 
 #endif // REWRITE_ONNX_FOR_ZHIGH
